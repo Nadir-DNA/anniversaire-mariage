@@ -344,39 +344,39 @@
     // ============= QUESTIONS =============
     const questions = [
       {
-        text: "Est-ce que ton mari est le plus beau ?",
-        yes: "Oui, c'est le plus beau 😍",
-        trap: "Non il est trop moche 🤢",
+        text: "Qui est le/la plus beau/belle dans ce couple ?",
+        yes: "C'est toi mon amour 😍",
+        trap: "C'est moi la plus belle 💅",
         trapType: "runaway",
-        message: "Bonne réponse ! Évidemment que je suis le plus beau 😎"
+        message: "Bonne réponse ! Tu es la plus belle à mes yeux 💖"
       },
       {
         text: "Qui porte le pantalon dans le couple ?",
-        yes: "C'est moi, la patronne 👑",
-        trap: "C'est lui, le chef 🧔",
+        yes: "C'est toi le patron mon mari 👑",
+        trap: "C'est moi la patronne 💁‍♀️",
         trapType: "shrink",
-        message: "Tu as bien raison... tu portes tout, pantalon compris 😅"
+        message: "Tu as bien raison... c'est toi le chef, je te suis partout 😉"
       },
       {
-        text: "Qui fait le meilleur café ?",
-        yes: "C'est moi, évidemment ☕",
-        trap: "C'est lui, le barista 🫗",
+        text: "Qui est le meilleur cuisinier ?",
+        yes: "C'est toi mon chef 👨‍🍳",
+        trap: "C'est moi la reine des fourneaux 👸",
         trapType: "teleport",
-        message: "Ton café est légendaire, le mien est... buvable 😂"
+        message: "Ton tajine est légendaire, le mien est... mangeable 😂"
       },
       {
         text: "Qui est le plus intelligent ?",
-        yes: "Égalité, on brille ensemble ✨",
-        trap: "C'est lui, le génie 🧠",
+        yes: "C'est toi mon génie 🧠",
+        trap: "C'est moi la plus intelligente 🎓",
         trapType: "multiply",
         message: "On est le couple le plus brillant du monde ! 💡"
       },
       {
-        text: "Veux-tu rester avec moi pour toujours ?",
-        yes: "Oui, pour l'éternité 💍",
-        trap: "Non, j'ai mieux à faire 🏃‍♀️",
+        text: "Qui aime le plus dans ce couple ?",
+        yes: "C'est toi mon grand amour 💕",
+        trap: "C'est moi qui t'aime le plus 💖",
         trapType: "chase",
-        message: "C'est la meilleure décision de ta vie... et de la mienne 💕"
+        message: "On s'aime autant l'un que l'autre... pour toujours 💍"
       }
     ];
 
@@ -514,7 +514,7 @@
       document.querySelectorAll('.btn-trap-clone').forEach(el => el.remove());
 
       // Base anti-click handler
-      const avoidMouse = (e, targetBtn, threshold = 180, pushMult = 1) => {
+      const avoidMouse = (e, targetBtn, threshold = 220, pushMult = 1) => {
         const rect = container.getBoundingClientRect();
         const btnRect = targetBtn.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
@@ -556,9 +556,9 @@
 
       switch(type) {
         case 'runaway': {
-          // Button teleports to farthest corner when mouse is within 200px
+          // Button teleports to farthest corner when mouse is within 250px
           currentTrapMouseHandler = (e) => {
-            avoidMouse(e, btn, 200, 1);
+            avoidMouse(e, btn, 250, 1);
           };
           container.addEventListener('mousemove', currentTrapMouseHandler);
           btn.onclick = () => { failCount++; updateScore(); };
@@ -577,7 +577,7 @@
             const btnCY = btnRect.top - rect.top + btnRect.height / 2;
             const dist = Math.sqrt((btnCX - mouseX) ** 2 + (btnCY - mouseY) ** 2);
 
-            if (dist < 220) {
+            if (dist < 260) {
               currentScale = Math.max(0.15, currentScale * 0.75);
               btn.style.transform = `translateX(-50%) scale(${currentScale})`;
               btn.style.opacity = Math.max(0.15, currentScale);
@@ -619,7 +619,7 @@
             const btnCY = btnRect.top - rect.top + btnRect.height / 2;
             const dist = Math.sqrt((btnCX - mouseX) ** 2 + (btnCY - mouseY) ** 2);
 
-            if (dist < 250) {
+            if (dist < 270) {
               // Pick random far position
               let nx, ny, d;
               let attempts = 0;
@@ -628,7 +628,7 @@
                 ny = Math.random() * (rect.height - btnRect.height - 20) + 10;
                 d = Math.sqrt((nx - mouseX) ** 2 + (ny - mouseY) ** 2);
                 attempts++;
-              } while (d < 200 && attempts < 20);
+              } while (d < 220 && attempts < 20);
 
               btn.style.left = nx + 'px';
               btn.style.top = ny + 'px';
@@ -644,26 +644,28 @@
         }
 
         case 'multiply': {
-          // Creates infinite fleeing clones
-          const spawnClone = (avoidX, avoidY) => {
-            if (document.querySelectorAll('.btn-trap-clone').length > 25) return;
-            const clone = btn.cloneNode(true);
-            clone.classList.add('btn-trap-clone');
+          // Pluie infinie de petits boutons "moi" partout sur l'écran
+          const spawnMoi = (avoidX, avoidY) => {
+            const rect = container.getBoundingClientRect();
+            const clone = document.createElement('button');
+            clone.className = 'btn btn-trap btn-trap-clone';
+            clone.textContent = 'moi';
             clone.style.position = 'absolute';
             clone.style.transform = 'none';
-            clone.style.fontSize = '0.75rem';
-            clone.style.padding = '8px 16px';
-            clone.textContent = ["Lui 🧔","Lui 😎","Lui 🤓","Lui 🥸","Nope 🙅"][Math.floor(Math.random()*5)];
+            clone.style.fontSize = '0.65rem';
+            clone.style.padding = '6px 12px';
+            clone.style.borderRadius = '20px';
+            clone.style.minWidth = 'auto';
+            clone.style.zIndex = '30';
 
-            const rect = container.getBoundingClientRect();
             let nx, ny, d;
             let attempts = 0;
             do {
-              nx = Math.random() * (rect.width - 100) + 10;
-              ny = Math.random() * (rect.height - 40) + 10;
+              nx = Math.random() * (rect.width - 60) + 5;
+              ny = Math.random() * (rect.height - 30) + 5;
               d = Math.sqrt((nx - avoidX) ** 2 + (ny - avoidY) ** 2);
               attempts++;
-            } while (d < 150 && attempts < 15);
+            } while (d < 100 && attempts < 20);
 
             clone.style.left = nx + 'px';
             clone.style.top = ny + 'px';
@@ -672,13 +674,18 @@
           };
 
           currentTrapMouseHandler = (e) => {
-            if (avoidMouse(e, btn, 200, 1)) {
-              spawnClone(e.clientX - container.getBoundingClientRect().left,
-                         e.clientY - container.getBoundingClientRect().top);
+            if (avoidMouse(e, btn, 220, 1)) {
+              // Spawn 2-4 petits "moi" à chaque fuite
+              const mx = e.clientX - container.getBoundingClientRect().left;
+              const my = e.clientY - container.getBoundingClientRect().top;
+              const count = 2 + Math.floor(Math.random() * 3);
+              for (let i = 0; i < count; i++) {
+                spawnMoi(mx, my);
+              }
             }
-            // Make all clones flee too
+            // Tous les petits "moi" fuient aussi
             document.querySelectorAll('.btn-trap-clone').forEach(clone => {
-              avoidMouse(e, clone, 120, 1);
+              avoidMouse(e, clone, 80, 1);
             });
           };
           container.addEventListener('mousemove', currentTrapMouseHandler);
@@ -700,7 +707,7 @@
             const dy = btnCY - mouseY;
             const dist = Math.sqrt(dx*dx + dy*dy);
 
-            if (dist < 250) {
+            if (dist < 280) {
               chaseScale = Math.max(0.2, chaseScale * 0.9);
               const angle = Math.atan2(dy, dx);
               const push = 140;
