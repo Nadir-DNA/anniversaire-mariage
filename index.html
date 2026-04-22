@@ -126,12 +126,18 @@
       box-shadow: 0 12px 35px rgba(231,76,60,0.4);
     }
 
-    .btn-trap {
+    .btn-trap, .btn-trap-clone {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: #fff;
       box-shadow: 0 8px 25px rgba(102,126,234,0.3);
       position: absolute;
-      transition: all 0.2s ease;
+      transition: none !important;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .btn-trap.fleeing, .btn-trap-clone.fleeing {
+      opacity: 0.4;
+      transform: scale(0.7);
     }
 
     .start-screen, .end-screen {
@@ -413,108 +419,243 @@
       setInterval(launchConfetti, 3000);
     }
 
-    // ============= PIÈGES =============
+    // ============= PIÈGES IMPOSSIBLES =============
+    let currentTrapMouseHandler = null;
+
     function setupTrap(type) {
       const btn = document.getElementById('btnTrap');
       const container = document.getElementById('buttonsContainer');
 
-      // Remove old listeners
-      const newBtn = btn.cloneNode(true);
-      btn.parentNode.replaceChild(newBtn, btn);
+      // Clean up old handler
+      if (currentTrapMouseHandler) {
+        container.removeEventListener('mousemove', currentTrapMouseHandler);
+        currentTrapMouseHandler = null;
+      }
 
-      newBtn.onmouseenter = null;
-      newBtn.onmousemove = null;
-      newBtn.onclick = () => { failCount++; updateScore(); };
+      // Reset button
+      btn.style.position = 'absolute';
+      btn.style.left = '50%';
+      btn.style.top = '0';
+      btn.style.transform = 'translateX(-50%)';
+      btn.style.opacity = '1';
+      btn.style.fontSize = '';
+      btn.style.width = 'auto';
+      btn.style.height = 'auto';
+      btn.classList.remove('fleeing');
+
+      // Remove clones
+      document.querySelectorAll('.btn-trap-clone').forEach(el => el.remove());
+
+      // Base anti-click handler
+      const avoidMouse = (e, targetBtn, threshold = 180, pushMult = 1) => {
+        const rect = container.getBoundingClientRect();
+        const btnRect = targetBtn.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const btnCX = btnRect.left - rect.left + btnRect.width / 2;
+        const btnCY = btnRect.top - rect.top + btnRect.height / 2;
+        const dx = btnCX - mouseX;
+        const dy = btnCY - mouseY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < threshold) {
+          // Teleport to farthest corner from mouse
+          const corners = [
+            { x: 10, y: 10 },
+            { x: rect.width - btnRect.width - 10, y: 10 },
+            { x: 10, y: rect.height - btnRect.height - 10 },
+            { x: rect.width - btnRect.width - 10, y: rect.height - btnRect.height - 10 },
+            { x: (rect.width - btnRect.width) / 2, y: 10 },
+            { x: (rect.width - btnRect.width) / 2, y: rect.height - btnRect.height - 10 },
+          ];
+          let bestCorner = corners[0];
+          let bestDist = -1;
+          corners.forEach(c => {
+            const cd = Math.sqrt((c.x - mouseX) ** 2 + (c.y - mouseY) ** 2);
+            if (cd > bestDist) { bestDist = cd; bestCorner = c; }
+          });
+
+          targetBtn.style.left = bestCorner.x + 'px';
+          targetBtn.style.top = bestCorner.y + 'px';
+          targetBtn.classList.add('fleeing');
+
+          setTimeout(() => targetBtn.classList.remove('fleeing'), 150);
+          failCount++;
+          updateScore();
+          return true;
+        }
+        return false;
+      };
 
       switch(type) {
-        case 'runaway':
-          newBtn.style.position = 'absolute';
-          newBtn.onmouseenter = () => {
+        case 'runaway': {
+          // Button teleports to farthest corner when mouse is within 200px
+          currentTrapMouseHandler = (e) => {
+            avoidMouse(e, btn, 200, 1);
+          };
+          container.addEventListener('mousemove', currentTrapMouseHandler);
+          btn.onclick = () => { failCount++; updateScore(); };
+          break;
+        }
+
+        case 'shrink': {
+          // Button shrinks each time mouse approaches; becomes nearly invisible
+          let currentScale = 1;
+          currentTrapMouseHandler = (e) => {
             const rect = container.getBoundingClientRect();
-            const maxX = rect.width - newBtn.offsetWidth - 20;
-            const maxY = rect.height - newBtn.offsetHeight - 20;
-            newBtn.style.left = Math.random() * maxX + 'px';
-            newBtn.style.top = Math.random() * maxY + 'px';
-            failCount++;
-            updateScore();
-          };
-          break;
-
-        case 'shrink':
-          newBtn.onmouseenter = () => {
-            const scale = Math.max(0.3, 1 - (trapClicks * 0.15));
-            newBtn.style.transform = `scale(${scale})`;
-            trapClicks++;
-            failCount++;
-            updateScore();
-            if (scale <= 0.35) {
-              newBtn.textContent = "Trop tard 😂";
-            }
-          };
-          break;
-
-        case 'teleport':
-          newBtn.style.position = 'absolute';
-          newBtn.onmousemove = (e) => {
-            const rect = container.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            const newX = Math.random() * (rect.width - 100);
-            const newY = Math.random() * (rect.height - 50);
-            if (Math.abs(x - parseFloat(newBtn.style.left || 0)) < 80 &&
-                Math.abs(y - parseFloat(newBtn.style.top || 0)) < 40) {
-              newBtn.style.left = newX + 'px';
-              newBtn.style.top = newY + 'px';
-              failCount++;
-              updateScore();
-            }
-          };
-          break;
-
-        case 'multiply':
-          newBtn.onmouseenter = () => {
-            if (document.querySelectorAll('.btn-trap-clone').length > 6) return;
-            const clone = newBtn.cloneNode(true);
-            clone.classList.add('btn-trap-clone');
-            clone.style.position = 'absolute';
-            clone.style.left = Math.random() * 200 + 'px';
-            clone.style.top = Math.random() * 100 + 'px';
-            clone.style.fontSize = '0.8rem';
-            clone.style.padding = '10px 20px';
-            clone.textContent = ["Lui 🧔","Lui 😎","Lui 🤓","Lui 🥸"][Math.floor(Math.random()*4)];
-            clone.onclick = () => { failCount++; updateScore(); };
-            container.appendChild(clone);
-            failCount++;
-            updateScore();
-          };
-          break;
-
-        case 'chase':
-          newBtn.style.position = 'absolute';
-          newBtn.onmousemove = (e) => {
-            const rect = container.getBoundingClientRect();
-            const btnRect = newBtn.getBoundingClientRect();
+            const btnRect = btn.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
-            const btnX = btnRect.left - rect.left + btnRect.width/2;
-            const btnY = btnRect.top - rect.top + btnRect.height/2;
-            const dx = btnX - mouseX;
-            const dy = btnY - mouseY;
-            const dist = Math.sqrt(dx*dx + dy*dy);
-            if (dist < 120) {
-              const angle = Math.atan2(dy, dx);
-              const push = 60;
-              let newX = btnX + Math.cos(angle) * push - btnRect.width/2;
-              let newY = btnY + Math.sin(angle) * push - btnRect.height/2;
-              newX = Math.max(0, Math.min(rect.width - btnRect.width, newX));
-              newY = Math.max(0, Math.min(rect.height - btnRect.height, newY));
-              newBtn.style.left = newX + 'px';
-              newBtn.style.top = newY + 'px';
+            const btnCX = btnRect.left - rect.left + btnRect.width / 2;
+            const btnCY = btnRect.top - rect.top + btnRect.height / 2;
+            const dist = Math.sqrt((btnCX - mouseX) ** 2 + (btnCY - mouseY) ** 2);
+
+            if (dist < 220) {
+              currentScale = Math.max(0.15, currentScale * 0.75);
+              btn.style.transform = `translateX(-50%) scale(${currentScale})`;
+              btn.style.opacity = Math.max(0.15, currentScale);
+              if (currentScale <= 0.2) btn.textContent = "Trop tard 😂";
+
+              // Also teleport away
+              const corners = [
+                { x: 10, y: 10 },
+                { x: rect.width - btnRect.width - 10, y: 10 },
+                { x: 10, y: rect.height - btnRect.height - 10 },
+                { x: rect.width - btnRect.width - 10, y: rect.height - btnRect.height - 10 },
+              ];
+              let best = corners[0], bestD = -1;
+              corners.forEach(c => {
+                const d = Math.sqrt((c.x - mouseX) ** 2 + (c.y - mouseY) ** 2);
+                if (d > bestD) { bestD = d; best = c; }
+              });
+              btn.style.left = best.x + 'px';
+              btn.style.top = best.y + 'px';
+              btn.style.transform = `scale(${currentScale})`;
+
               failCount++;
               updateScore();
             }
           };
+          container.addEventListener('mousemove', currentTrapMouseHandler);
+          btn.onclick = () => { failCount++; updateScore(); };
           break;
+        }
+
+        case 'teleport': {
+          // Button becomes invisible and teleports constantly near mouse
+          currentTrapMouseHandler = (e) => {
+            const rect = container.getBoundingClientRect();
+            const btnRect = btn.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const btnCX = btnRect.left - rect.left + btnRect.width / 2;
+            const btnCY = btnRect.top - rect.top + btnRect.height / 2;
+            const dist = Math.sqrt((btnCX - mouseX) ** 2 + (btnCY - mouseY) ** 2);
+
+            if (dist < 250) {
+              // Pick random far position
+              let nx, ny, d;
+              let attempts = 0;
+              do {
+                nx = Math.random() * (rect.width - btnRect.width - 20) + 10;
+                ny = Math.random() * (rect.height - btnRect.height - 20) + 10;
+                d = Math.sqrt((nx - mouseX) ** 2 + (ny - mouseY) ** 2);
+                attempts++;
+              } while (d < 200 && attempts < 20);
+
+              btn.style.left = nx + 'px';
+              btn.style.top = ny + 'px';
+              btn.style.opacity = '0.25';
+              setTimeout(() => { btn.style.opacity = '1'; }, 200);
+              failCount++;
+              updateScore();
+            }
+          };
+          container.addEventListener('mousemove', currentTrapMouseHandler);
+          btn.onclick = () => { failCount++; updateScore(); };
+          break;
+        }
+
+        case 'multiply': {
+          // Creates infinite fleeing clones
+          const spawnClone = (avoidX, avoidY) => {
+            if (document.querySelectorAll('.btn-trap-clone').length > 25) return;
+            const clone = btn.cloneNode(true);
+            clone.classList.add('btn-trap-clone');
+            clone.style.position = 'absolute';
+            clone.style.transform = 'none';
+            clone.style.fontSize = '0.75rem';
+            clone.style.padding = '8px 16px';
+            clone.textContent = ["Lui 🧔","Lui 😎","Lui 🤓","Lui 🥸","Nope 🙅"][Math.floor(Math.random()*5)];
+
+            const rect = container.getBoundingClientRect();
+            let nx, ny, d;
+            let attempts = 0;
+            do {
+              nx = Math.random() * (rect.width - 100) + 10;
+              ny = Math.random() * (rect.height - 40) + 10;
+              d = Math.sqrt((nx - avoidX) ** 2 + (ny - avoidY) ** 2);
+              attempts++;
+            } while (d < 150 && attempts < 15);
+
+            clone.style.left = nx + 'px';
+            clone.style.top = ny + 'px';
+            clone.onclick = () => { failCount++; updateScore(); };
+            container.appendChild(clone);
+          };
+
+          currentTrapMouseHandler = (e) => {
+            if (avoidMouse(e, btn, 200, 1)) {
+              spawnClone(e.clientX - container.getBoundingClientRect().left,
+                         e.clientY - container.getBoundingClientRect().top);
+            }
+            // Make all clones flee too
+            document.querySelectorAll('.btn-trap-clone').forEach(clone => {
+              avoidMouse(e, clone, 120, 1);
+            });
+          };
+          container.addEventListener('mousemove', currentTrapMouseHandler);
+          btn.onclick = () => { failCount++; updateScore(); };
+          break;
+        }
+
+        case 'chase': {
+          // Ultra-aggressive: flees with massive push, gets smaller each time
+          let chaseScale = 1;
+          currentTrapMouseHandler = (e) => {
+            const rect = container.getBoundingClientRect();
+            const btnRect = btn.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const btnCX = btnRect.left - rect.left + btnRect.width / 2;
+            const btnCY = btnRect.top - rect.top + btnRect.height / 2;
+            const dx = btnCX - mouseX;
+            const dy = btnCY - mouseY;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+
+            if (dist < 250) {
+              chaseScale = Math.max(0.2, chaseScale * 0.9);
+              const angle = Math.atan2(dy, dx);
+              const push = 140;
+              let nx = btnCX + Math.cos(angle) * push - btnRect.width / 2;
+              let ny = btnCY + Math.sin(angle) * push - btnRect.height / 2;
+              nx = Math.max(5, Math.min(rect.width - btnRect.width - 5, nx));
+              ny = Math.max(5, Math.min(rect.height - btnRect.height - 5, ny));
+
+              btn.style.left = nx + 'px';
+              btn.style.top = ny + 'px';
+              btn.style.transform = `scale(${chaseScale})`;
+              btn.style.opacity = Math.max(0.2, chaseScale);
+              btn.classList.add('fleeing');
+              setTimeout(() => btn.classList.remove('fleeing'), 100);
+              failCount++;
+              updateScore();
+            }
+          };
+          container.addEventListener('mousemove', currentTrapMouseHandler);
+          btn.onclick = () => { failCount++; updateScore(); };
+          break;
+        }
       }
     }
 
